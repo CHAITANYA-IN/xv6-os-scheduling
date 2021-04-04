@@ -27,6 +27,7 @@ OBJS = \
 	uart.o\
 	vectors.o\
 	vm.o\
+	random.o\
 
 # Cross-compiling (e.g., on Mac OS X)
 # TOOLPREFIX = i386-jos-elf
@@ -40,14 +41,14 @@ TOOLPREFIX := $(shell if i386-jos-elf-objdump -i 2>&1 | grep '^elf32-i386$$' >/d
 	then echo 'i386-jos-elf-'; \
 	elif objdump -i 2>&1 | grep 'elf32-i386' >/dev/null 2>&1; \
 	then echo ''; \
-	else echo "***" 1>&2; \
-	echo "*** Error: Couldn't find an i386-*-elf version of GCC/binutils." 1>&2; \
-	echo "*** Is the directory with i386-jos-elf-gcc in your PATH?" 1>&2; \
-	echo "*** If your i386-*-elf toolchain is installed with a command" 1>&2; \
-	echo "*** prefix other than 'i386-jos-elf-', set your TOOLPREFIX" 1>&2; \
-	echo "*** environment variable to that prefix and run 'make' again." 1>&2; \
-	echo "*** To turn off this error, run 'gmake TOOLPREFIX= ...'." 1>&2; \
-	echo "***" 1>&2; exit 1; fi)
+	else echo "*" 1>&2; \
+	echo "* Error: Couldn't find an i386-*-elf version of GCC/binutils." 1>&2; \
+	echo "* Is the directory with i386-jos-elf-gcc in your PATH?" 1>&2; \
+	echo "* If your i386-*-elf toolchain is installed with a command" 1>&2; \
+	echo "* prefix other than 'i386-jos-elf-', set your TOOLPREFIX" 1>&2; \
+	echo "* environment variable to that prefix and run 'make' again." 1>&2; \
+	echo "* To turn off this error, run 'gmake TOOLPREFIX= ...'." 1>&2; \
+	echo "*" 1>&2; exit 1; fi)
 endif
 
 # If the makefile can't find QEMU, specify its path here
@@ -64,11 +65,11 @@ QEMU = $(shell if which qemu > /dev/null; \
 	else \
 	qemu=/Applications/Q.app/Contents/MacOS/i386-softmmu.app/Contents/MacOS/i386-softmmu; \
 	if test -x $$qemu; then echo $$qemu; exit; fi; fi; \
-	echo "***" 1>&2; \
-	echo "*** Error: Couldn't find a working QEMU executable." 1>&2; \
-	echo "*** Is the directory containing the qemu binary in your PATH" 1>&2; \
-	echo "*** or have you tried setting the QEMU variable in Makefile?" 1>&2; \
-	echo "***" 1>&2; exit 1)
+	echo "*" 1>&2; \
+	echo "* Error: Couldn't find a working QEMU executable." 1>&2; \
+	echo "* Is the directory containing the qemu binary in your PATH" 1>&2; \
+	echo "* or have you tried setting the QEMU variable in Makefile?" 1>&2; \
+	echo "*" 1>&2; exit 1)
 endif
 
 CC = $(TOOLPREFIX)gcc
@@ -234,11 +235,11 @@ qemu-nox: fs.img xv6.img
 	sed "s/localhost:1234/localhost:$(GDBPORT)/" < $^ > $@
 
 qemu-gdb: fs.img xv6.img .gdbinit
-	@echo "*** Now run 'gdb'." 1>&2
+	@echo "* Now run 'gdb'." 1>&2
 	$(QEMU) -serial mon:stdio $(QEMUOPTS) -S $(QEMUGDB)
 
 qemu-nox-gdb: fs.img xv6.img .gdbinit
-	@echo "*** Now run 'gdb'." 1>&2
+	@echo "* Now run 'gdb'." 1>&2
 	$(QEMU) -nographic $(QEMUOPTS) -S $(QEMUGDB)
 
 # CUT HERE
@@ -251,7 +252,7 @@ EXTRA=\
 	mkfs.c ulib.c user.h cat.c echo.c forktest.c grep.c kill.c\
 	ln.c ls.c mkdir.c rm.c stressfs.c usertests.c wc.c zombie.c\
 	printf.c umalloc.c\
-	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
+	README dot-bochsrc .pl toc. runoff runoff1 runoff.list\
 	.gdbinit.tmpl gdbutil\
 
 dist:
