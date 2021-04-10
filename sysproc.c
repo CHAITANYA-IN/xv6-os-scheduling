@@ -8,13 +8,6 @@
 #include "proc.h"
 #include "spinlock.h"
 
-struct process_table
-{
-  struct spinlock lock;
-  struct proc proc[NPROC];
-}ptable;
-
-
 int sys_fork(void)
 {
   return fork();
@@ -95,23 +88,16 @@ int sys_uptime(void)
 int sys_setlotterytickets(void)
 {
   int pid, n;
-  struct proc *p;
   if (argint(0, &pid) < 0)
     return -1;
   if (argint(1, &n) < 0)
     return -2;
   if (pid < 1 || n < 1)
     return -3;
-  acquire(&ptable.lock);
-  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-  {
-    if (p->pid == pid)
-    {
-      p->tickets = n;
-      release(&ptable.lock);
-      return 0;
-    }
-  }
-  release(&ptable.lock);
-  return -4;
+  return setlotterytickets(pid, n);
+}
+
+int sys_ps(void) 
+{
+  return ps();
 }

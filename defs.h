@@ -120,6 +120,8 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+int             setlotterytickets(int pid, int n);
+int             ps(void);
 
 // random.c
 uint            randtickets(uint max_tickets);
