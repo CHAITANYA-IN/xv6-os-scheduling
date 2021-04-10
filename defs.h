@@ -121,6 +121,9 @@ int             wait(void);
 void            wakeup(void*);
 void            yield(void);
 
+// random.c
+uint            randtickets(uint max_tickets);
+
 // swtch.S
 void            swtch(struct context**, struct context*);
 
