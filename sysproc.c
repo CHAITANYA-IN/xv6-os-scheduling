@@ -98,7 +98,7 @@ int
 sys_changepriority(void) 
 {
   int pid, priority;
-  if(argint(0, &pid) == -1 || argint(0, &priority) == -1) 
+  if(argint(0, &pid) == -1 || argint(1, &priority) == -1) 
     return -1;
   if(priority < 1 || priority > 20)
     return -1;
