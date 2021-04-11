@@ -532,3 +532,43 @@ procdump(void)
     cprintf("\n");
   }
 }
+
+int
+ps(void)
+{
+  struct proc *p;
+  sti();
+  acquire(&ptable.lock);
+  cprintf("state\t\tpid\tname\tppid\n");
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if (p->state < 6 || p->state > 1)
+    {
+      switch (p->state)
+      {
+      case RUNNING:
+        cprintf("running \t");
+        break;
+      case RUNNABLE:
+        cprintf("runnable\t");
+        break;
+      case SLEEPING:
+        cprintf("sleeping\t");
+        break;
+      case ZOMBIE:
+        cprintf("zombie  \t");
+        break;
+      default:
+        continue;
+      }
+      cprintf("%d\t%s\t", p->pid, p->name);
+      if (p->pid == 1)
+        cprintf("0\t");
+      else
+        cprintf("%d\t", p->parent->pid);
+      cprintf("\n");
+    }
+  }
+  release(&ptable.lock);
+  return 0;
+}
