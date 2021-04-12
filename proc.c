@@ -7,6 +7,17 @@
 #include "proc.h"
 #include "spinlock.h"
 
+enum priorities { highest=1, higher, high, medium, low, lower, lowest };
+static int quantas[] = {
+  [lowest] 1,
+  [lower] 3,
+  [low] 4,
+  [medium] 5,
+  [high] 6,
+  [higher] 7,
+  [highest] 9
+};
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -88,7 +99,8 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
-  p->priority = 8;
+  p->priority = lowest;
+  p->noOfTimeQuantas = quantas[p->priority];
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -322,7 +334,7 @@ wait(void)
 void
 scheduler(void)
 {
-  struct proc *p;
+  struct proc *p, *q, *big_priority;
   struct cpu *c = mycpu();
   c->proc = 0;
   
@@ -335,13 +347,21 @@ scheduler(void)
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
-
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
+      big_priority = p;
+      for(q = ptable.proc; q < &ptable.proc[NPROC]; q++) {
+        if(q->state != RUNNABLE)
+          continue;
+        if(big_priority->priority > q->priority)
+          big_priority = q;
+      }
+      p = big_priority;
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
+      p->noOfTimeQuantas = quantas[p->priority];
+
+      // if(p->priority != low)
+      //   p->priority++;
 
       swtch(&(c->scheduler), p->context);
       switchkvm();
@@ -582,6 +602,7 @@ changepriority(int pid, int priority)
   {
     if(p->pid == pid) {
       p->priority = priority;
+      p->noOfTimeQuantas = quantas[p->priority];
       release(&ptable.lock);
       return 0;
     }

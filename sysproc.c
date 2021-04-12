@@ -100,7 +100,7 @@ sys_changepriority(void)
   int pid, priority;
   if(argint(0, &pid) == -1 || argint(1, &priority) == -1) 
     return -1;
-  if(priority < 1 || priority > 20)
+  if(priority < 1 || priority > 7)
     return -1;
   return changepriority(pid, priority);
 }
