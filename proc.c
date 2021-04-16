@@ -322,7 +322,7 @@ wait(void)
 void
 scheduler(void)
 {
-  struct proc *p;
+  struct proc *p=0;struct proc *p1=0;
   struct cpu *c = mycpu();
   c->proc = 0;
   
@@ -335,24 +335,36 @@ scheduler(void)
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
+	if(p1==0) {
+		p1=p;
+	}
+	else {
+		//check the first arriving process.
+		if(p1->creation_time > p_creation_time)
+			p1=p;
+	
+	}
+	
+	if(p1!=0) {
+		p=p1;		        
 
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
-      c->proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
-
-      swtch(&(c->scheduler), p->context);
-      switchkvm();
+      		c->proc = p;
+      		switchuvm(p);
+      		p->state = RUNNING;
+		swtch(&(c->scheduler), p->context);
+      		switchkvm();
 
       // Process is done running for now.
       // It should have changed its p->state before coming back.
-      c->proc = 0;
-    }
+      		c->proc = 0;
+    	}	
     release(&ptable.lock);
 
   }
+}
 }
 
 // Enter scheduler.  Must hold only ptable.lock
