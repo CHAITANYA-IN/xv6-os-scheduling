@@ -49,9 +49,10 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
-  int index;                  // Priority of the process (From the Priority Scheduling Algo)
-  int max_wait_timeslice;     // Maximum wait time for a process
-  int max_run_timeslice;      // Keeping track of running time 
+  int index;                   // Priority of the process (From the Priority Scheduling Algo)
+  int queue_number;           // Tells which queue the process has moved to  
+  int wait_timeslice;         // Maximum wait time for a process
+  int run_timeslice;          // Keeping track of running time 
 
 };
 
@@ -64,7 +65,7 @@ struct feedback_queue {
   struct proc *arrq[NPROC];
   int front;
   int rear;
-  int max_waiting_time;
-  int max_respone_time;
+  int max_wait_time;
+  int max_run_time;
 
 };
