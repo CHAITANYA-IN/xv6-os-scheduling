@@ -589,3 +589,39 @@ void procdump(void)
     cprintf("\n");
   }
 }
+void aging()
+{
+  int j;
+  struct proc *p2;
+  for (p2 = ptable.proc; p2 < &ptable.proc[NPROC]; p2++)
+  {
+    if (p2->state == RUNNABLE)
+      p2->wait_timeslice++; // Incrementing the wait time
+    else if (p2->state == RUNNING)
+      p2->run_timeslice++;
+  } // Incrementing the run time
+  for (j = 0; j < 5; j++)
+  { //Traversing all the queues.
+    if (arr1[j].front != -1)
+    {
+      p2 = arr1[j].arrq[arr1[j].front];
+      while (p2->state == RUNNABLE)
+      {
+        if (p2->wait_timeslice > arr1[j].max_wait_time) // If the wait time is more than the max time limit, increase its priority
+          dequeue(p2);                                     // Remove it from the exisitng queue
+        p2->index++;                                       // increase its priority
+        p2->queue_number = p2->index;                      //Store the current queue number;
+        p2->run_timeslice = 0;                             // Clear the run and wait time
+        p2->wait_timeslice = 0;
+        enqueue(p2);
+        if (p2->run_timeslice > arr1[j].max_run_time)
+          dequeue(p2);                // Remove it from the exisitng queue
+        p2->index--;                  // decrease its priority
+        p2->queue_number = p2->index; //Store the current queue number;
+        p2->run_timeslice = 0;        // Clear the run and wait time
+        p2->wait_timeslice = 0;
+        enqueue(p2);
+      }
+    }
+  }
+}
