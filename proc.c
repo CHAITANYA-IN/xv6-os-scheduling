@@ -8,15 +8,6 @@
 #include "spinlock.h"
 
 enum priorities { highest=1, higher, high, medium, low, lower, lowest };
-static int quantas[] = {
-  [lowest] 1,
-  [lower] 3,
-  [low] 4,
-  [medium] 5,
-  [high] 6,
-  [higher] 7,
-  [highest] 9
-};
 
 struct {
   struct spinlock lock;
@@ -25,6 +16,7 @@ struct {
 
 static struct proc *initproc;
 
+extern int priority;
 int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
@@ -100,7 +92,6 @@ found:
   p->state = EMBRYO;
   p->pid = nextpid++;
   p->priority = lowest;
-  p->noOfTimeQuantas = quantas[p->priority];
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -358,8 +349,7 @@ scheduler(void)
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
-      p->noOfTimeQuantas = quantas[p->priority];
-
+      lapic_timer_changer(8 - p->priority);
       // if(p->priority != low)
       //   p->priority++;
 
@@ -602,7 +592,6 @@ changepriority(int pid, int priority)
   {
     if(p->pid == pid) {
       p->priority = priority;
-      p->noOfTimeQuantas = quantas[p->priority];
       release(&ptable.lock);
       return 0;
     }

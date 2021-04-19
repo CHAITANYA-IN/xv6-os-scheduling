@@ -9,6 +9,7 @@
 #include "traps.h"
 #include "mmu.h"
 #include "x86.h"
+#include "proc.h"
 
 // Local APIC registers, divided by 4 for use as uint[] indices.
 #define ID      (0x0020/4)   // ID
@@ -42,13 +43,18 @@
 #define TDCR    (0x03E0/4)   // Timer Divide Configuration
 
 volatile uint *lapic;  // Initialized in mp.c
-
 //PAGEBREAK!
 static void
 lapicw(int index, int value)
 {
   lapic[index] = value;
   lapic[ID];  // wait for write to finish, by reading
+}
+
+void
+lapic_timer_changer(int priority) {
+  lapicw(TICR, priority * 10000000);
+  cprintf("Timer : %d\n", priority * 10000000);
 }
 
 void

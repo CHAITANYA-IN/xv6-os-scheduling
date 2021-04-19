@@ -80,6 +80,7 @@ void            lapiceoi(void);
 void            lapicinit(void);
 void            lapicstartap(uchar, uint);
 void            microdelay(int);
+void            lapic_timer_changer(int);
 
 // log.c
 void            initlog(int dev);
