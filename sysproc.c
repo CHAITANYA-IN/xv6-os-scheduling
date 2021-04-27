@@ -92,12 +92,14 @@ int sys_setlotterytickets(void)
     return -1;
   if (argint(1, &n) < 0)
     return -2;
+  if (pid == -1)
+    pid = myproc()->pid;
   if (pid < 1 || n < 1)
     return -3;
   return setlotterytickets(pid, n);
 }
 
-int sys_ps(void) 
+int sys_ps(void)
 {
   return ps();
 }

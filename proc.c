@@ -370,6 +370,7 @@ void scheduler(void)
       c->proc = p;
       switchuvm(p);
       p->state = RUNNING;
+      p->ticks++;
 
       swtch(&(c->scheduler), p->context);
       switchkvm();
@@ -457,7 +458,7 @@ void sleep(void *chan, struct spinlock *lk)
   // (wakeup runs with ptable.lock locked),
   // so it's okay to release lk.
   if (lk != &ptable.lock)
-  {              //DOC: sleeplock0
+  {                        //DOC: sleeplock0
     acquire(&ptable.lock); //DOC: sleeplock1
     release(lk);
   }
@@ -530,12 +531,12 @@ int kill(int pid)
 void procdump(void)
 {
   static char *states[] = {
-    [UNUSED] "unused",
-    [EMBRYO] "embryo",
-    [SLEEPING] "sleep ",
-    [RUNNABLE] "runble",
-    [RUNNING] "run   ",
-    [ZOMBIE] "zombie"};
+      [UNUSED] "unused",
+      [EMBRYO] "embryo",
+      [SLEEPING] "sleep ",
+      [RUNNABLE] "runble",
+      [RUNNING] "run   ",
+      [ZOMBIE] "zombie"};
   int i;
   struct proc *p;
   char *state;
@@ -560,8 +561,7 @@ void procdump(void)
   }
 }
 
-int
-setlotterytickets(int pid, int n)
+int setlotterytickets(int pid, int n)
 {
   struct proc *p;
   acquire(&ptable.lock);
@@ -578,13 +578,12 @@ setlotterytickets(int pid, int n)
   return -1;
 }
 
-int
-ps(void)
+int ps(void)
 {
   struct proc *p;
   sti();
   acquire(&ptable.lock);
-  cprintf("state\t\tpid\tname\tppid\ttickets\n");
+  cprintf("state\tpid\tname\tppid\ttickets\tswitches\n");
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
     if (p->state < 6 || p->state > 1)
@@ -592,16 +591,16 @@ ps(void)
       switch (p->state)
       {
       case RUNNING:
-        cprintf("running \t");
+        cprintf("run   \t");
         break;
       case RUNNABLE:
-        cprintf("runnable\t");
+        cprintf("ready \t");
         break;
       case SLEEPING:
-        cprintf("sleeping\t");
+        cprintf("sleep \t");
         break;
       case ZOMBIE:
-        cprintf("zombie  \t");
+        cprintf("zombie\t");
         break;
       default:
         continue;
@@ -611,7 +610,7 @@ ps(void)
         cprintf("0\t");
       else
         cprintf("%d\t", p->parent->pid);
-      cprintf("%d\n", p->tickets);
+      cprintf("%d\t%d\n", p->tickets, p->ticks);
     }
   }
   release(&ptable.lock);
