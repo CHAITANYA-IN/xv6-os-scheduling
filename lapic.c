@@ -54,7 +54,6 @@ lapicw(int index, int value)
 void
 lapic_timer_changer(int priority) {
   lapicw(TICR, priority * 10000000);
-  cprintf("Timer : %d\n", priority * 10000000);
 }
 
 void

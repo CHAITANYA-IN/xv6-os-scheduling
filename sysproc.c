@@ -100,7 +100,26 @@ sys_changepriority(void)
   int pid, priority;
   if(argint(0, &pid) == -1 || argint(1, &priority) == -1) 
     return -1;
-  if(priority < 1 || priority > 7)
-    return -1;
+  if(priority < 1)
+    priority = 1;
+  if(priority > 50)
+    priority = 50;
   return changepriority(pid, priority);
+}
+
+int sys_proc_stats(void) {
+  int *waitTime, *runTime, *creationTime, *endTime, *ioTime, *resTime;
+  if(argptr(0, (char**)&waitTime, sizeof(int)) < 0)
+    return -1;
+  if(argptr(1, (char**)&runTime, sizeof(int)) < 0)
+    return -1;
+  if(argptr(2, (char**)&creationTime, sizeof(int)) < 0)
+    return -1;
+  if(argptr(3, (char**)&endTime, sizeof(int)) < 0)
+    return -1;
+  if(argptr(4, (char**)&ioTime, sizeof(int)) < 0)
+    return -1;
+  if(argptr(5, (char**)&resTime, sizeof(int)) < 0)
+    return -1;
+  return proc_stats(waitTime, runTime, creationTime, endTime, ioTime, resTime);
 }
