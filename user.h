@@ -23,7 +23,7 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
-long int setlotterytickets(void);
+long int setlotterytickets(int, int);
 int ps(void);
 
 // ulib.c
