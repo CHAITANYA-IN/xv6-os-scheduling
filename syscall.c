@@ -103,9 +103,15 @@ extern int sys_unlink(void);
 extern int sys_wait(void);
 extern int sys_write(void);
 extern int sys_uptime(void);
+extern int sys_halt(void);
+#ifdef Lottery
 extern int sys_setlotterytickets(void);
+#endif
 extern int sys_ps(void);
-
+extern int sys_proc_stats(void);
+#ifdef Priority
+extern int sys_changepriority(void);
+#endif
 static int (*syscalls[])(void) = {
   [SYS_fork]    sys_fork,
   [SYS_exit]    sys_exit,
@@ -128,8 +134,15 @@ static int (*syscalls[])(void) = {
   [SYS_link]    sys_link,
   [SYS_mkdir]   sys_mkdir,
   [SYS_close]   sys_close,
+  [SYS_halt]   sys_halt,
+  #ifdef Lottery
   [SYS_setlotterytickets] sys_setlotterytickets,
+  #endif
   [SYS_ps] sys_ps,
+  [SYS_proc_stats]   sys_proc_stats,
+  #ifdef Priority
+  [SYS_changepriority]    sys_changepriority,
+  #endif
 };
 
 void

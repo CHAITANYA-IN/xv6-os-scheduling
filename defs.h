@@ -120,12 +120,19 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+#ifdef Lottery
 int             setlotterytickets(int pid, int n);
+#endif
+#ifdef Priority
+int             changepriority(int, int);
+#endif
+int proc_stats(int *, int *,int *, int *,int *,int *, int *);
 int             ps(void);
 
 // random.c
+#ifdef Lottery
 uint            randtickets(uint max_tickets);
-
+#endif
 // swtch.S
 void            swtch(struct context**, struct context*);
 

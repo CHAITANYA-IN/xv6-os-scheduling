@@ -16,3 +16,5 @@ mkfs
 .gdbinit
 *.out
 .vscode
+cscope.out
+.DS_Store

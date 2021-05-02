@@ -90,7 +90,17 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  #ifdef Lottery
   p->tickets = 15;
+  #endif
+  #ifdef Priority
+  p->priority = 50;
+  #endif
+  p->ctime = ticks;
+  p->rtime = 0;
+  p->etime = 0;
+  p->iotime = 0;
+  p->ticks = 0;
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -220,6 +230,8 @@ int fork(void)
   acquire(&ptable.lock);
 
   np->state = RUNNABLE;
+  np->restime1 = ticks;
+  np->restime2 = 0;
 
   release(&ptable.lock);
 
@@ -271,8 +283,65 @@ void exit(void)
 
   // Jump into the scheduler, never to return.
   curproc->state = ZOMBIE;
+  curproc->etime = ticks;
   sched();
   panic("zombie exit");
+}
+
+int 
+proc_stats(int *wtime, int *rtime, int *ctime, int *etime, int *iotime, int *restime, int *var) {
+  struct proc *p;
+  int havekids, pid;
+  struct proc *curproc = myproc();
+
+  acquire(&ptable.lock);
+  for (;;) {
+    // Scan through table looking for exited children.
+    havekids = 0;
+    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+      if (p->parent != curproc)
+        continue;
+      havekids = 1;
+      if (p->state == ZOMBIE) {
+        // Found one.
+        *ctime = p->ctime;
+        *etime = p->etime;
+        *iotime = p->iotime;
+        *wtime = p->etime - p->ctime - p->rtime - p->iotime;
+        *rtime = p->rtime;
+        *restime = p->restime2 - p->restime1;
+        #ifdef Lottery
+        *var = p->tickets;
+        #endif
+        #ifdef Priority
+        *var = p->priority;
+        #endif
+        #ifdef FCFS
+        *var = 0;
+        #endif
+        pid = p->pid;
+        kfree(p->kstack);
+        p->kstack = 0;
+        freevm(p->pgdir);
+        p->pid = 0;
+        p->parent = 0;
+        p->name[0] = 0;
+        p->killed = 0;
+        p->state = UNUSED;
+        release(&ptable.lock);
+        return pid;
+      }
+    }
+
+    // No point waiting if we don't have any children.
+    if (!havekids || curproc->killed) {
+      release(&ptable.lock);
+      return -1;
+    }
+
+    // Wait for children to exit.  (See wakeup1 call in proc_exit.)
+    sleep(curproc, &ptable.lock); //DOC: wait-sleep
+  }
 }
 
 // Wait for a child process to exit and return its pid.
@@ -301,7 +370,9 @@ int wait(void)
         p->kstack = 0;
         freevm(p->pgdir);
         p->pid = 0;
+        #ifdef Lottery
         p->tickets = 0;
+        #endif
         p->parent = 0;
         p->name[0] = 0;
         p->killed = 0;
@@ -336,6 +407,7 @@ void scheduler(void)
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
+  #ifdef Lottery
   long int total = 0, ticket_acc = 0, random_process_no;
   for (;;)
   {
@@ -369,9 +441,11 @@ void scheduler(void)
     {
       c->proc = p;
       switchuvm(p);
-      p->state = RUNNING;
       p->ticks++;
-
+      p->state = RUNNING;
+      if(!p->restime2) {
+        p->restime2 = ticks;
+      }
       swtch(&(c->scheduler), p->context);
       switchkvm();
     }
@@ -382,7 +456,96 @@ void scheduler(void)
     ticket_acc = 0;
     release(&ptable.lock);
   }
+  #endif
+  #ifdef Priority
+    struct proc *big_priority,*q;
+    for(;;){
+    // Enable interrupts on this processor.
+    sti();
+
+    // Loop over process table looking for process to run.
+    acquire(&ptable.lock);
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->state != RUNNABLE)
+        continue;
+      big_priority = p;
+      for(q = ptable.proc; q < &ptable.proc[NPROC]; q++) {
+        if(q->state != RUNNABLE)
+          continue;
+        if(big_priority->priority > q->priority)
+          big_priority = q;
+      }
+      p = big_priority;
+      c->proc = p;
+      switchuvm(p);
+      p->state = RUNNING;
+      if(!p->restime2) {
+        p->restime2 = ticks;
+      }
+      p->ticks++;
+      // lapic_timer_changer(50-p->priority);
+      // if(p->priority != low)
+      //   p->priority++;
+
+      swtch(&(c->scheduler), p->context);
+      switchkvm();
+
+      // Process is done running for now.
+      // It should have changed its p->state before coming back.
+      c->proc = 0;
+    }
+    release(&ptable.lock);
+
+  }
+  #endif
+  #ifdef FCFS
+  struct proc *p1 = 0;
+  for(;;) {
+      // Enable interrupts on this processor.
+      sti();
+      p1 = 0;
+      // Loop over process table looking for process to run.
+      acquire(&ptable.lock);
+      for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+        if(p->state != RUNNABLE)
+          continue;
+        if(p->pid > 1) {
+          if (p1){
+            if(p->ctime < p1->ctime)
+              p1 = p;
+          }
+          else
+              p1 = p;
+        }
+        if(p1) {
+          if(p1->state == RUNNABLE)
+            p = p1;
+        }
+        if(p) {
+          // Switch to chosen process.  It is the process's job
+          // to release ptable.lock and then reacquire it
+          // before jumping back to us.
+          c->proc = p;
+          switchuvm(p);
+          p->state = RUNNING;
+          if(!p->restime2) {
+            p->restime2 = ticks;
+          }
+          p->ticks++;
+          swtch(&(c->scheduler), p->context);
+          switchkvm();
+
+          // Process is done running for now.
+          // It should have changed its p->state before coming back.
+          c->proc = 0;
+        }
+      }
+      release(&ptable.lock);
+  }
+  #endif
 }
+
+// }
 
 // Enter scheduler.  Must hold only ptable.lock
 // and have changed proc->state. Saves and restores
@@ -458,7 +621,7 @@ void sleep(void *chan, struct spinlock *lk)
   // (wakeup runs with ptable.lock locked),
   // so it's okay to release lk.
   if (lk != &ptable.lock)
-  {                        //DOC: sleeplock0
+  {              //DOC: sleeplock0
     acquire(&ptable.lock); //DOC: sleeplock1
     release(lk);
   }
@@ -531,12 +694,12 @@ int kill(int pid)
 void procdump(void)
 {
   static char *states[] = {
-      [UNUSED] "unused",
-      [EMBRYO] "embryo",
-      [SLEEPING] "sleep ",
-      [RUNNABLE] "runble",
-      [RUNNING] "run   ",
-      [ZOMBIE] "zombie"};
+    [UNUSED] "unused",
+    [EMBRYO] "embryo",
+    [SLEEPING] "sleep ",
+    [RUNNABLE] "runble",
+    [RUNNING] "run   ",
+    [ZOMBIE] "zombie"};
   int i;
   struct proc *p;
   char *state;
@@ -560,8 +723,9 @@ void procdump(void)
     cprintf("\n");
   }
 }
-
-int setlotterytickets(int pid, int n)
+#ifdef Lottery
+int
+setlotterytickets(int pid, int n)
 {
   struct proc *p;
   acquire(&ptable.lock);
@@ -577,13 +741,40 @@ int setlotterytickets(int pid, int n)
   release(&ptable.lock);
   return -1;
 }
-
-int ps(void)
+#endif
+#ifdef Priority
+int
+changepriority(int pid, int priority)
+{
+  struct proc *p;
+  acquire(&ptable.lock);
+  for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if(p->pid == pid) {
+      p->priority = priority;
+      release(&ptable.lock);
+      return 0;
+    }
+  }
+  release(&ptable.lock);
+  return -1;
+}
+#endif
+int
+ps(void)
 {
   struct proc *p;
   sti();
   acquire(&ptable.lock);
-  cprintf("state\tpid\tname\tppid\ttickets\tswitches\n");
+
+  cprintf("state\t\tpid\tname\tppid\t");
+  #ifdef Lottery
+  cprintf("tickets");
+  #endif
+  #ifdef Priority
+  cprintf("Priority");
+  #endif
+  cprintf("\n");
   for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
     if (p->state < 6 || p->state > 1)
@@ -591,16 +782,16 @@ int ps(void)
       switch (p->state)
       {
       case RUNNING:
-        cprintf("run   \t");
+        cprintf("running \t");
         break;
       case RUNNABLE:
-        cprintf("ready \t");
+        cprintf("runnable\t");
         break;
       case SLEEPING:
-        cprintf("sleep \t");
+        cprintf("sleeping\t");
         break;
       case ZOMBIE:
-        cprintf("zombie\t");
+        cprintf("zombie  \t");
         break;
       default:
         continue;
@@ -610,7 +801,13 @@ int ps(void)
         cprintf("0\t");
       else
         cprintf("%d\t", p->parent->pid);
-      cprintf("%d\t%d\n", p->tickets, p->ticks);
+      #ifdef Lottery
+      cprintf("%d", p->tickets);
+      #endif
+      #ifdef Priority
+       cprintf("%d", p->priority);
+       #endif
+       cprintf("\n");
     }
   }
   release(&ptable.lock);
