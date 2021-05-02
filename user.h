@@ -25,6 +25,7 @@ int sleep(int);
 int uptime(void);
 long int setlotterytickets(int, int);
 int ps(void);
+int proc_stats(int *, int *,int *, int *,int *,int *, int *);
 
 // ulib.c
 int stat(const char*, struct stat*);

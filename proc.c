@@ -91,6 +91,11 @@ found:
   p->state = EMBRYO;
   p->pid = nextpid++;
   p->tickets = 15;
+  p->ctime = ticks;
+  p->rtime = 0;
+  p->etime = 0;
+  p->iotime = 0;
+  p->ticks = 0;
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -220,6 +225,8 @@ int fork(void)
   acquire(&ptable.lock);
 
   np->state = RUNNABLE;
+  np->restime1 = ticks;
+  np->restime2 = 0;
 
   release(&ptable.lock);
 
@@ -271,8 +278,57 @@ void exit(void)
 
   // Jump into the scheduler, never to return.
   curproc->state = ZOMBIE;
+  curproc->etime = ticks;
   sched();
   panic("zombie exit");
+}
+
+int 
+proc_stats(int *wtime, int *rtime, int *ctime, int *etime, int *iotime, int *restime, int *tickets) {
+  struct proc *p;
+  int havekids, pid;
+  struct proc *curproc = myproc();
+
+  acquire(&ptable.lock);
+  for (;;) {
+    // Scan through table looking for exited children.
+    havekids = 0;
+    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+      if (p->parent != curproc)
+        continue;
+      havekids = 1;
+      if (p->state == ZOMBIE) {
+        // Found one.
+        *ctime = p->ctime;
+        *etime = p->etime;
+        *iotime = p->iotime;
+        *wtime = p->etime - p->ctime - p->rtime - p->iotime;
+        *rtime = p->rtime;
+        *restime = p->restime2 - p->restime1;
+        *tickets = p->tickets;
+        pid = p->pid;
+        kfree(p->kstack);
+        p->kstack = 0;
+        freevm(p->pgdir);
+        p->pid = 0;
+        p->parent = 0;
+        p->name[0] = 0;
+        p->killed = 0;
+        p->state = UNUSED;
+        release(&ptable.lock);
+        return pid;
+      }
+    }
+
+    // No point waiting if we don't have any children.
+    if (!havekids || curproc->killed) {
+      release(&ptable.lock);
+      return -1;
+    }
+
+    // Wait for children to exit.  (See wakeup1 call in proc_exit.)
+    sleep(curproc, &ptable.lock); //DOC: wait-sleep
+  }
 }
 
 // Wait for a child process to exit and return its pid.
@@ -369,8 +425,11 @@ void scheduler(void)
     {
       c->proc = p;
       switchuvm(p);
+      p->ticks++;
       p->state = RUNNING;
-
+      if(!p->restime2) {
+        p->restime2 = ticks;
+      }
       swtch(&(c->scheduler), p->context);
       switchkvm();
     }

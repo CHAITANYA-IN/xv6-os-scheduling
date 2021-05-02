@@ -101,3 +101,22 @@ int sys_ps(void)
 {
   return ps();
 }
+
+int sys_proc_stats(void) {
+  int *waitTime, *runTime, *creationTime, *endTime, *ioTime, *resTime, *tickets;
+  if(argptr(0, (char**)&waitTime, sizeof(int)) < 0)
+    return -1;
+  if(argptr(1, (char**)&runTime, sizeof(int)) < 0)
+    return -1;
+  if(argptr(2, (char**)&creationTime, sizeof(int)) < 0)
+    return -1;
+  if(argptr(3, (char**)&endTime, sizeof(int)) < 0)
+    return -1;
+  if(argptr(4, (char**)&ioTime, sizeof(int)) < 0)
+    return -1;
+  if(argptr(5, (char**)&resTime, sizeof(int)) < 0)
+    return -1;
+  if(argptr(6, (char**)&tickets, sizeof(int)) < 0)
+    return -1;
+  return proc_stats(waitTime, runTime, creationTime, endTime, ioTime, resTime, tickets);
+}
