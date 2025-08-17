@@ -3,7 +3,7 @@
 #include "user.h"
 
 struct proc_stat {
-  int wtime, rtime, ctime, etime, iotime, restime; 
+  int wtime, rtime, ctime, etime, iotime, restime;
   #ifdef Lottery
   int tickets;
   #endif
@@ -15,42 +15,61 @@ struct proc_stat {
 void save(struct proc_stat *p, int n) {
     int fd, i;
     int avgWait = 0, avgRun = 0, avgRes = 0, avgTat = 0;
-    fd = open("../data.csv", O_CREATE | O_RDWR);
+
+    #ifdef Lottery
+    fd = open("lottery_data.csv", O_CREATE | O_RDWR);
+    #endif
+    #ifdef Priority
+    fd = open("priority_data.csv", O_CREATE | O_RDWR);
+    #endif
+    #ifdef FCFS
+    fd = open("fcfs_data.csv", O_CREATE | O_RDWR);
+    #endif
+
     if(fd >= 0)
-        printf(1, "writing in data.csv\n");
+        printf(1, "writing scheduling data to CSV\n");
     else {
-        printf(1, "error: create data.csv failed\n");
+        printf(1, "error: create CSV file failed\n");
         exit();
     }
+
     #ifdef Lottery
-    printf(fd, "tickets,wait,run,creat,end,io,tat,res\n");
-     #endif
+    printf(fd, "algorithm,process_id,tickets,wait_time,run_time,creation_time,end_time,io_time,turnaround_time,response_time\n");
+    #endif
     #ifdef Priority
-     printf(fd, "Priority,wait,run,creat,end,io,tat,res\n");
-     #endif
+    printf(fd, "algorithm,process_id,priority,wait_time,run_time,creation_time,end_time,io_time,turnaround_time,response_time\n");
+    #endif
     #ifdef FCFS
-    printf(fd, "wait,run,creat,end,io,tat,res\n");
+    printf(fd, "algorithm,process_id,wait_time,run_time,creation_time,end_time,io_time,turnaround_time,response_time\n");
     #endif
     for(i = 0; i < n; i++) {
       avgRes += (p+i)->restime;
       avgWait += (p+i)->wtime;
       avgRun += (p+i)->rtime;
       avgTat += (p+i)->etime - (p+i)->ctime;
+
       #ifdef Lottery
-      printf(fd, "%d,%d,%d,%d,%d,%d,%d,%d\n", (p+i)->tickets, (p+i)->wtime, (p+i)->rtime, (p+i)->ctime, (p+i)->etime, (p+i)->iotime, (p+i)->etime-(p+i)->ctime, (p+i)->restime);
+      printf(fd, "Lottery,%d,%d,%d,%d,%d,%d,%d,%d,%d\n", i, (p+i)->tickets, (p+i)->wtime, (p+i)->rtime, (p+i)->ctime, (p+i)->etime, (p+i)->iotime, (p+i)->etime-(p+i)->ctime, (p+i)->restime);
       #endif
-      #ifdef Priority 
-       printf(fd, "%d,%d,%d,%d,%d,%d,%d,%d\n", (p+i)->priority, (p+i)->wtime, (p+i)->rtime, (p+i)->ctime, (p+i)->etime, (p+i)->iotime, (p+i)->etime-(p+i)->ctime, (p+i)->restime);
-      #endif  
+      #ifdef Priority
+      printf(fd, "Priority,%d,%d,%d,%d,%d,%d,%d,%d,%d\n", i, (p+i)->priority, (p+i)->wtime, (p+i)->rtime, (p+i)->ctime, (p+i)->etime, (p+i)->iotime, (p+i)->etime-(p+i)->ctime, (p+i)->restime);
+      #endif
       #ifdef FCFS
-      printf(fd, "%d,%d,%d,%d,%d,%d,%d\n", (p+i)->wtime, (p+i)->rtime, (p+i)->ctime, (p+i)->etime, (p+i)->iotime, (p+i)->etime-(p+i)->ctime, (p+i)->restime);
+      printf(fd, "FCFS,%d,%d,%d,%d,%d,%d,%d,%d\n", i, (p+i)->wtime, (p+i)->rtime, (p+i)->ctime, (p+i)->etime, (p+i)->iotime, (p+i)->etime-(p+i)->ctime, (p+i)->restime);
       #endif
     }
-    printf(fd, "avgWait,avgRun, avgRes\n");
-    printf(fd, "%d,%d,%d\n", avgWait/n,avgRun/n, avgRes/n);
-    printf(fd, "Throughput : %d processes/second\n", 100*n/avgRun);
-    printf(1, "Throughput : %d processes/second\n", 100*n/avgRun);
-    printf(1, "write done\n");
+    printf(fd, "\nSummary Statistics:\n");
+    printf(fd, "Average Wait Time,%d\n", avgWait/n);
+    printf(fd, "Average Run Time,%d\n", avgRun/n);
+    printf(fd, "Average Response Time,%d\n", avgRes/n);
+    printf(fd, "Average Turnaround Time,%d\n", avgTat/n);
+    printf(fd, "Throughput,%d processes per 100 ticks\n", 100*n/avgRun);
+
+    printf(1, "Algorithm Performance Summary:\n");
+    printf(1, "Average Wait Time: %d ticks\n", avgWait/n);
+    printf(1, "Average Turnaround Time: %d ticks\n", avgTat/n);
+    printf(1, "Throughput: %d processes per 100 ticks\n", 100*n/avgRun);
+    printf(1, "Data written to CSV file\n");
     close(fd);
 }
 
@@ -62,7 +81,7 @@ int main(int argc, char *argv[])
     processes = 10;
   else
     processes = atoi(argv[1]);
-  
+
   struct proc_stat p[processes];
   #ifdef FCFS
   limit =3e7;
@@ -78,27 +97,28 @@ int main(int argc, char *argv[])
                 printf(1, "%d failed in fork!\n", getpid());
             }
    }
-  
+
   #else
+  // For Priority and Lottery scheduling
   for (int j = 0; j < processes; j++)
   {
     ppid = fork();
     if (ppid == 0)
     {
       int pid = getpid();
-      for (z = 0; z < limit / 2; z += 1)
-        x = x + 45.93 * 0.23;
-      // 3.14 * 89.64; // useless calculations to consume CPU time
+
+      // Set priority/tickets BEFORE starting work
       #ifdef Lottery
-      setlotterytickets(pid, 50 - pid / 2);
+      setlotterytickets(pid, 10 + (j * 5)); // Different ticket counts: 10, 15, 20, 25, etc.
       #endif
       #ifdef Priority
-      changepriority(pid, 50 - pid / 2);
+      changepriority(pid, 10 + j); // Different priorities: 10, 11, 12, 13, etc.
       #endif
-      
-      for (z = 0; z < limit / 2; z += 1)
-        x = x + 45.93 * 0.23;
-      // 3.14 * 89.64; // useless calculations to consume CPU time
+
+      // CPU-intensive work to test scheduling
+      for (z = 0; z < limit; z += 1)
+        x = x + 3.14 * 89.64;
+
       exit();
     }
     else if (ppid < 0)
@@ -106,6 +126,13 @@ int main(int argc, char *argv[])
   }
 
   #endif
+
+  // Wait for all child processes to complete
+  for (int i = 0; i < processes; i++) {
+    wait();
+  }
+
+  // Collect statistics for each completed process
   for (int i = 0; i < processes; i++)
   {
     #ifdef Lottery

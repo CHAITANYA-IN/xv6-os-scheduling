@@ -77,7 +77,11 @@ mpconfig(struct mp **pmp)
 
   if((mp = mpsearch()) == 0 || mp->physaddr == 0)
     return 0;
-  conf = (struct mpconf*) P2V((uint) mp->physaddr);
+  // Validate physaddr is in a reasonable range (below 0xFFFFFFFF and above 0x10000)
+  uint pa = (uint)mp->physaddr;
+  if(pa < 0x10000 || pa > 0xFFFFFFFF)
+    return 0;
+  conf = (struct mpconf*) P2V(pa);
   if(memcmp(conf, "PCMP", 4) != 0)
     return 0;
   if(conf->version != 1 && conf->version != 4)
